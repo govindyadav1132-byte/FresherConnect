@@ -21,7 +21,9 @@ function App() {
   useEffect(() => {
     checkSession()
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (session?.user) {
           loadUser(session.user)
@@ -34,7 +36,7 @@ function App() {
     )
 
     return () => {
-      listener.subscription.unsubscribe()
+      subscription.unsubscribe()
     }
   }, [])
 
@@ -100,7 +102,9 @@ function App() {
       (field) => field && field.trim() !== ''
     ).length
 
-    setProfileCompletion(Math.round((completed / fields.length) * 100))
+    setProfileCompletion(
+      Math.round((completed / fields.length) * 100)
+    )
   }
 
   function handleLoginSuccess(loggedInUser) {
@@ -110,6 +114,7 @@ function App() {
 
   async function handleLogout() {
     await supabase.auth.signOut()
+
     setUser(null)
     setAnalysis(null)
     setProfileCompletion(0)
@@ -140,7 +145,7 @@ function App() {
   return (
     <div className="app">
 
-      {/* LOGIN */}
+      {/* ================= LOGIN ================= */}
       {page === 'login' && (
         <Login
           onLoginSuccess={handleLoginSuccess}
@@ -148,15 +153,15 @@ function App() {
         />
       )}
 
-      {/* SIGNUP */}
+      {/* ================= SIGNUP ================= */}
       {page === 'signup' && (
         <Signup
-          onSignupSuccess={() => setPage('login')}
-          onGoLogin={() => setPage('login')}
+          onBack={() => setPage('login')}
+          onLogin={() => setPage('login')}
         />
       )}
 
-      {/* DASHBOARD */}
+      {/* ================= DASHBOARD ================= */}
       {page === 'dashboard' && user && (
         <>
           <nav className="navbar">
@@ -165,6 +170,7 @@ function App() {
             </div>
 
             <button
+              type="button"
               className="login-btn"
               onClick={handleLogout}
             >
@@ -192,8 +198,8 @@ function App() {
                 </h1>
 
                 <p>
-                  Analyze your resume, identify skill gaps and prepare
-                  yourself for your dream career.
+                  Analyze your resume, identify skill gaps and
+                  prepare yourself for your dream career.
                 </p>
 
                 <div
@@ -206,6 +212,7 @@ function App() {
                 >
 
                   <button
+                    type="button"
                     className="hero-btn"
                     onClick={() => setPage('profile')}
                   >
@@ -213,6 +220,7 @@ function App() {
                   </button>
 
                   <button
+                    type="button"
                     className="hero-btn"
                     onClick={() => setPage('upload')}
                   >
@@ -220,6 +228,7 @@ function App() {
                   </button>
 
                   <button
+                    type="button"
                     className="hero-btn"
                     onClick={() => setPage('history')}
                   >
@@ -227,6 +236,7 @@ function App() {
                   </button>
 
                   <button
+                    type="button"
                     className="hero-btn"
                     onClick={() => setPage('training')}
                   >
@@ -238,7 +248,7 @@ function App() {
               </div>
             </section>
 
-            {/* PROFILE COMPLETION */}
+            {/* ================= PROFILE COMPLETION ================= */}
             <section
               style={{
                 maxWidth: '1100px',
@@ -252,9 +262,11 @@ function App() {
                   border: '1px solid #e2e8f0',
                   borderRadius: '16px',
                   padding: '25px',
-                  boxShadow: '0 8px 25px rgba(15, 23, 42, 0.06)',
+                  boxShadow:
+                    '0 8px 25px rgba(15, 23, 42, 0.06)',
                 }}
               >
+
                 <div
                   style={{
                     display: 'flex',
@@ -308,14 +320,16 @@ function App() {
                     Your profile is complete! 🎉
                   </p>
                 )}
+
               </div>
             </section>
 
-            {/* CAREER TOOLKIT */}
+            {/* ================= CAREER TOOLKIT ================= */}
             <section className="features-section">
 
               <div className="section-heading">
                 <h2>Career Toolkit</h2>
+
                 <p>
                   Everything you need to become internship-ready.
                 </p>
@@ -325,7 +339,9 @@ function App() {
 
                 <div className="feature-card">
                   <div className="feature-icon">📄</div>
+
                   <h3>Resume Analysis</h3>
+
                   <p>
                     Analyze your resume against your target role
                     and discover your skill gaps.
@@ -334,7 +350,9 @@ function App() {
 
                 <div className="feature-card">
                   <div className="feature-icon">🎓</div>
+
                   <h3>Training & Learning</h3>
+
                   <p>
                     Learn the skills required for your target
                     internship or fresher role.
@@ -343,7 +361,9 @@ function App() {
 
                 <div className="feature-card">
                   <div className="feature-icon">💼</div>
+
                   <h3>Internships</h3>
+
                   <p>
                     Discover internship opportunities based on
                     your skills and career goals.
@@ -352,7 +372,9 @@ function App() {
 
                 <div className="feature-card">
                   <div className="feature-icon">📊</div>
+
                   <h3>Application Tracking</h3>
+
                   <p>
                     Track your internship and job applications
                     in one place.
@@ -367,7 +389,7 @@ function App() {
         </>
       )}
 
-      {/* PROFILE */}
+      {/* ================= PROFILE ================= */}
       {page === 'profile' && user && (
         <Profile
           user={user}
@@ -378,7 +400,7 @@ function App() {
         />
       )}
 
-      {/* RESUME UPLOAD */}
+      {/* ================= RESUME UPLOAD ================= */}
       {page === 'upload' && user && (
         <ResumeUpload
           user={user}
@@ -387,7 +409,7 @@ function App() {
         />
       )}
 
-      {/* RESULTS */}
+      {/* ================= RESULTS ================= */}
       {page === 'results' && (
         <Results
           analysis={analysis}
@@ -395,7 +417,7 @@ function App() {
         />
       )}
 
-      {/* RESUME HISTORY */}
+      {/* ================= RESUME HISTORY ================= */}
       {page === 'history' && user && (
         <ResumeHistory
           user={user}
@@ -407,7 +429,7 @@ function App() {
         />
       )}
 
-      {/* HISTORY RESULT */}
+      {/* ================= HISTORY RESULT ================= */}
       {page === 'history-results' && (
         <Results
           analysis={analysis}
@@ -415,7 +437,7 @@ function App() {
         />
       )}
 
-      {/* TRAINING */}
+      {/* ================= TRAINING ================= */}
       {page === 'training' && user && (
         <Training
           onBack={() => setPage('dashboard')}
