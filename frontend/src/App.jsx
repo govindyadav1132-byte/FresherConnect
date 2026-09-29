@@ -147,10 +147,11 @@ function App() {
 
       {/* ================= LOGIN ================= */}
       {page === 'login' && (
-        <Login
-          onLoginSuccess={handleLoginSuccess}
-          onGoSignup={() => setPage('signup')}
-        />
+       <Login
+  onLoginSuccess={handleLoginSuccess}
+  onSignup={() => setPage('signup')}
+  onBack={() => setPage('login')}
+/>
       )}
 
       {/* ================= SIGNUP ================= */}

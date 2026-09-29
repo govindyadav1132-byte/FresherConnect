@@ -14,11 +14,11 @@ function Login({ onBack, onSignup, onLoginSuccess }) {
     setLoading(true)
     setMessage('')
 
-    // Login with Supabase Authentication
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    })
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
     if (error) {
       setMessage(error.message)
@@ -27,32 +27,29 @@ function Login({ onBack, onSignup, onLoginSuccess }) {
     }
 
     if (data.user) {
-      // Get the user's profile from the profiles table
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('user_id', data.user.id)
-        .single()
+      const { data: profile, error: profileError } =
+        await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', data.user.id)
+          .single()
 
       if (profileError) {
-        // Fallback to the name stored in Supabase Auth
         const userName =
           data.user.user_metadata?.full_name || 'User'
 
         setMessage(`Welcome back, ${userName}!`)
 
-        // Send user information to App.jsx
         onLoginSuccess({
           id: data.user.id,
           full_name: userName,
         })
       } else {
-        // Profile found
-        const userName = profile.full_name || 'User'
+        const userName =
+          profile?.full_name || 'User'
 
         setMessage(`Welcome back, ${userName}!`)
 
-        // Send user information to App.jsx
         onLoginSuccess({
           id: data.user.id,
           full_name: userName,
@@ -67,7 +64,9 @@ function Login({ onBack, onSignup, onLoginSuccess }) {
     <div className="auth-page">
       <div className="auth-card">
 
+        {/* BACK BUTTON */}
         <button
+          type="button"
           className="back-btn"
           onClick={onBack}
         >
@@ -107,11 +106,13 @@ function Login({ onBack, onSignup, onLoginSuccess }) {
           />
 
           <button
-            className="auth-submit"
             type="submit"
+            className="auth-submit"
             disabled={loading}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading
+              ? 'Logging in...'
+              : 'Login'}
           </button>
 
         </form>
@@ -125,7 +126,10 @@ function Login({ onBack, onSignup, onLoginSuccess }) {
         <p className="switch-auth">
           Don't have an account?
 
-          <button onClick={onSignup}>
+          <button
+            type="button"
+            onClick={onSignup}
+          >
             Sign Up
           </button>
         </p>
