@@ -1,30 +1,28 @@
 import { useState } from 'react'
+import { supabase } from './supabaseClient'
 
-function ResumeUpload({ onBack }) {
+function ResumeUpload({ user, onBack, onAnalysisComplete }) {
   const [file, setFile] = useState(null)
+  const [role, setRole] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0]
 
     setMessage('')
-    setResult(null)
 
     if (!selectedFile) {
       setFile(null)
       return
     }
 
-    // PDF only
     if (selectedFile.type !== 'application/pdf') {
       setMessage('Please upload a PDF file only.')
       setFile(null)
       return
     }
 
-    // Maximum 5 MB
     if (selectedFile.size > 5 * 1024 * 1024) {
       setMessage('File size must be less than 5 MB.')
       setFile(null)
@@ -42,15 +40,25 @@ function ResumeUpload({ onBack }) {
       return
     }
 
+    if (!role) {
+      setMessage('Please select a target job role.')
+      return
+    }
+
+    if (!user?.id) {
+      setMessage('User session not found. Please login again.')
+      return
+    }
+
     setLoading(true)
     setMessage('')
-    setResult(null)
+
+    const formData = new FormData()
+
+    formData.append('resume', file)
+    formData.append('role', role)
 
     try {
-      const formData = new FormData()
-
-      formData.append('resume', file)
-
       const response = await fetch(
         'http://127.0.0.1:5000/analyze-resume',
         {
@@ -62,22 +70,82 @@ function ResumeUpload({ onBack }) {
       const data = await response.json()
 
       if (!response.ok) {
-        setMessage(data.error || 'Something went wrong.')
-        setLoading(false)
+        setMessage(
+          data.error || 'Resume analysis failed.'
+        )
         return
       }
 
-      setResult(data)
+      // =====================================================
+      // SAVE ANALYSIS TO SUPABASE
+      // =====================================================
 
-      setMessage('Resume analyzed successfully!')
+      const { error: saveError } = await supabase
+        .from('resume_analysis')
+        .insert([
+          {
+            user_id: user.id,
+
+            filename: data.filename,
+
+            role: data.role,
+
+            pages: data.pages,
+
+            skill_score: data.skill_score,
+
+            skills: data.skills,
+
+            missing_skills: data.missing_skills,
+
+            recommendations: data.recommendations,
+
+            // NEW
+            quality_score: data.quality_score,
+
+            // NEW
+            resume_quality: data.resume_quality,
+          },
+        ])
+
+      if (saveError) {
+        console.error(
+          'Supabase save error:',
+          saveError
+        )
+
+        setMessage(
+          'Resume analyzed, but the analysis could not be saved.'
+        )
+
+        if (onAnalysisComplete) {
+          onAnalysisComplete(data)
+        }
+
+        return
+      }
+
+      // =====================================================
+      // SHOW RESULTS
+      // =====================================================
+
+      if (onAnalysisComplete) {
+        onAnalysisComplete(data)
+      }
 
     } catch (error) {
-      setMessage(
-        'Could not connect to the backend. Make sure the Python server is running.'
+      console.error(
+        'Analysis error:',
+        error
       )
-    }
 
-    setLoading(false)
+      setMessage(
+        'Could not connect to the backend. Make sure Flask is running.'
+      )
+
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -96,15 +164,82 @@ function ResumeUpload({ onBack }) {
           <span>F</span> FresherConnect
         </div>
 
-        <h1>Upload Your Resume</h1>
+        <h1>
+          Upload Your Resume
+        </h1>
 
         <p className="auth-subtitle">
-          Upload your resume and let FresherConnect analyze your skills.
+          Upload your resume and select the job role you want to target.
         </p>
 
         <form onSubmit={handleUpload}>
 
-          <label>Select Resume</label>
+          {/* ================================================= */}
+          {/* TARGET ROLE */}
+          {/* ================================================= */}
+
+          <label>
+            Target Job Role
+          </label>
+
+          <select
+            value={role}
+            onChange={(e) => {
+              setRole(e.target.value)
+              setMessage('')
+            }}
+          >
+
+            <option value="">
+              Select a job role
+            </option>
+
+            <option value="Frontend Developer">
+              Frontend Developer
+            </option>
+
+            <option value="Backend Developer">
+              Backend Developer
+            </option>
+
+            <option value="Full Stack Developer">
+              Full Stack Developer
+            </option>
+
+            <option value="Python Developer">
+              Python Developer
+            </option>
+
+            <option value="Java Developer">
+              Java Developer
+            </option>
+
+            <option value="Data Analyst">
+              Data Analyst
+            </option>
+
+            <option value="Data Scientist">
+              Data Scientist
+            </option>
+
+            <option value="Machine Learning Engineer">
+              Machine Learning Engineer
+            </option>
+
+            <option value="Android Developer">
+              Android Developer
+            </option>
+
+          </select>
+
+
+          {/* ================================================= */}
+          {/* RESUME FILE */}
+          {/* ================================================= */}
+
+          <label>
+            Select Resume
+          </label>
 
           <input
             type="file"
@@ -112,83 +247,61 @@ function ResumeUpload({ onBack }) {
             onChange={handleFileChange}
           />
 
+
+          {/* ================================================= */}
+          {/* SELECTED FILE */}
+          {/* ================================================= */}
+
           {file && (
+
             <div
               style={{
-                marginTop: '15px',
-                padding: '12px',
-                background: '#eff6ff',
-                borderRadius: '8px',
-                color: '#172033',
+                marginTop: '12px',
+                padding: '12px 15px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '9px',
+                color: '#475569',
+                fontSize: '14px',
               }}
             >
-              <strong>Selected file:</strong>
-              <br />
-              {file.name}
+              📄 {file.name}
             </div>
+
           )}
+
+
+          {/* ================================================= */}
+          {/* ANALYZE BUTTON */}
+          {/* ================================================= */}
 
           <button
             className="auth-submit"
             type="submit"
-            disabled={!file || loading}
-            style={{
-              marginTop: '20px',
-              opacity: !file || loading ? 0.6 : 1,
-              cursor: !file || loading ? 'not-allowed' : 'pointer',
-            }}
+            disabled={
+              !file ||
+              !role ||
+              loading
+            }
           >
             {loading
               ? 'Analyzing Resume...'
-              : 'Upload Resume →'}
+              : 'Analyze Resume →'}
           </button>
 
         </form>
 
+
+        {/* ================================================= */}
+        {/* MESSAGE */}
+        {/* ================================================= */}
+
         {message && (
+
           <p className="auth-message">
             {message}
           </p>
-        )}
 
-        {result && (
-          <div
-            style={{
-              marginTop: '20px',
-              padding: '20px',
-              background: '#f8fafc',
-              borderRadius: '10px',
-              textAlign: 'left',
-            }}
-          >
-
-            <h3>Resume Analysis</h3>
-
-            <p>
-              <strong>File:</strong> {result.filename}
-            </p>
-
-            <p>
-              <strong>Pages:</strong> {result.pages}
-            </p>
-
-            <p>
-              <strong>Skills Found:</strong>
-            </p>
-
-            {result.skills && result.skills.length > 0 ? (
-              <ul>
-                {result.skills.map((skill, index) => (
-                  <li key={index}>
-                    {skill}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No known skills detected.</p>
-            )}
-
-          </div>
         )}
 
       </div>

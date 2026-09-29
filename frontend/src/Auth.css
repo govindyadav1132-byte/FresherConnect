@@ -100,3 +100,12 @@
   cursor: pointer;
   font-weight: 600;
 }
+
+.auth-card h1 {
+  color: #172033 !important;
+}
+
+.auth-card h2,
+.auth-card h3 {
+  color: #172033 !important;
+}

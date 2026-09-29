@@ -1,484 +1,426 @@
+import { useEffect, useState } from 'react'
 import './App.css'
-import { useState } from 'react'
+
 import Login from './Login'
 import Signup from './Signup'
 import Profile from './Profile'
 import ResumeUpload from './ResumeUpload'
+import Results from './Results'
+import ResumeHistory from './ResumeHistory'
+import Training from './Training'
+
 import { supabase } from './supabaseClient'
 
 function App() {
-  const [page, setPage] = useState('home')
+  const [page, setPage] = useState('login')
   const [user, setUser] = useState(null)
+  const [analysis, setAnalysis] = useState(null)
+  const [checkingSession, setCheckingSession] = useState(true)
+  const [profileCompletion, setProfileCompletion] = useState(0)
 
-  // =========================
-  // Login Page
-  // =========================
-  if (page === 'login') {
+  useEffect(() => {
+    checkSession()
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          loadUser(session.user)
+        } else {
+          setUser(null)
+          setPage('login')
+          setProfileCompletion(0)
+        }
+      }
+    )
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (user?.id) {
+      loadProfileCompletion()
+    }
+  }, [user])
+
+  async function checkSession() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (session?.user) {
+      await loadUser(session.user)
+    }
+
+    setCheckingSession(false)
+  }
+
+  async function loadUser(authUser) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('user_id', authUser.id)
+      .single()
+
+    setUser({
+      id: authUser.id,
+      full_name:
+        profile?.full_name ||
+        authUser.user_metadata?.full_name ||
+        'User',
+    })
+
+    setPage('dashboard')
+  }
+
+  async function loadProfileCompletion() {
+    if (!user?.id) return
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('full_name, college, course, year, skills')
+      .eq('user_id', user.id)
+      .single()
+
+    if (error || !data) {
+      setProfileCompletion(0)
+      return
+    }
+
+    const fields = [
+      data.full_name,
+      data.college,
+      data.course,
+      data.year,
+      data.skills,
+    ]
+
+    const completed = fields.filter(
+      (field) => field && field.trim() !== ''
+    ).length
+
+    setProfileCompletion(Math.round((completed / fields.length) * 100))
+  }
+
+  function handleLoginSuccess(loggedInUser) {
+    setUser(loggedInUser)
+    setPage('dashboard')
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    setUser(null)
+    setAnalysis(null)
+    setProfileCompletion(0)
+    setPage('login')
+  }
+
+  function handleAnalysisComplete(data) {
+    setAnalysis(data)
+    setPage('results')
+  }
+
+  if (checkingSession) {
     return (
-      <Login
-        onBack={() => setPage('home')}
-        onSignup={() => setPage('signup')}
-        onLoginSuccess={(loggedInUser) => {
-          setUser(loggedInUser)
-          setPage('dashboard')
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '20px',
         }}
-      />
-    )
-  }
-
-  // =========================
-  // Signup Page
-  // =========================
-  if (page === 'signup') {
-    return (
-      <Signup
-        onBack={() => setPage('home')}
-        onLogin={() => setPage('login')}
-      />
-    )
-  }
-
-  // =========================
-  // Profile Page
-  // =========================
-  if (page === 'profile') {
-    return (
-      <Profile
-        user={user}
-        onBack={() => setPage('dashboard')}
-      />
-    )
-  }
-
-  // =========================
-  // Resume Upload Page
-  // =========================
-  if (page === 'resume') {
-    return (
-      <ResumeUpload
-        onBack={() => setPage('dashboard')}
-      />
-    )
-  }
-
-  // =========================
-  // Dashboard
-  // =========================
-  if (page === 'dashboard') {
-    return (
-      <div className="app">
-
-        {/* Dashboard Navbar */}
-        <nav className="navbar">
-
-          <div className="logo">
-            <span>F</span> FresherConnect
-          </div>
-
-          <div className="nav-links">
-
-            <button
-              className="login-btn"
-              onClick={() => setPage('profile')}
-            >
-              My Profile
-            </button>
-
-            <span>
-              Welcome, {user?.full_name || 'User'}!
-            </span>
-
-            <button
-              className="login-btn"
-              onClick={async () => {
-                await supabase.auth.signOut()
-                setUser(null)
-                setPage('home')
-              }}
-            >
-              Logout
-            </button>
-
-          </div>
-
-        </nav>
-
-        {/* Dashboard Hero */}
-        <section className="hero-section">
-
-          <div className="hero-content">
-
-            <p className="tagline">
-              WELCOME BACK
-            </p>
-
-            <h1 className="dashboard-title">
-              Hello, <span>{user?.full_name || 'User'}!</span>
-            </h1>
-
-            <p className="hero-text">
-              Welcome to your FresherConnect dashboard. Your career journey
-              starts here.
-            </p>
-
-            <div className="hero-buttons">
-
-              <button
-                className="primary-btn"
-                onClick={() => setPage('resume')}
-              >
-                Upload Resume →
-              </button>
-
-              <button
-                className="secondary-btn"
-                onClick={() => setPage('profile')}
-              >
-                My Profile
-              </button>
-
-            </div>
-
-          </div>
-
-          <div className="hero-card">
-
-            <div className="card-icon">
-              📄
-            </div>
-
-            <h2>
-              Analyze Your Resume
-            </h2>
-
-            <p>
-              Upload your resume to discover your skills and improve your
-              career opportunities.
-            </p>
-
-          </div>
-
-        </section>
-
-        {/* Dashboard Features */}
-        <section className="features-section">
-
-          <p className="section-label">
-            YOUR CAREER JOURNEY
-          </p>
-
-          <h2>
-            Build Your Career
-          </h2>
-
-          <div className="features">
-
-            <div className="feature-card">
-
-              <div className="feature-icon">
-                📄
-              </div>
-
-              <h3>
-                Resume Analysis
-              </h3>
-
-              <p>
-                Upload your resume and get insights about your skills and
-                career profile.
-              </p>
-
-              <button
-                className="primary-btn"
-                onClick={() => setPage('resume')}
-              >
-                Upload Resume
-              </button>
-
-            </div>
-
-            <div className="feature-card">
-
-              <div className="feature-icon">
-                👤
-              </div>
-
-              <h3>
-                Student Profile
-              </h3>
-
-              <p>
-                Keep your college, course, year and skills information
-                updated.
-              </p>
-
-              <button
-                className="primary-btn"
-                onClick={() => setPage('profile')}
-              >
-                My Profile
-              </button>
-
-            </div>
-
-            <div className="feature-card">
-
-              <div className="feature-icon">
-                💼
-              </div>
-
-              <h3>
-                Find Opportunities
-              </h3>
-
-              <p>
-                Discover internships and jobs designed for freshers.
-              </p>
-
-            </div>
-
-          </div>
-
-        </section>
-
+      >
+        Loading...
       </div>
     )
   }
 
-  // =========================
-  // Home Page
-  // =========================
   return (
     <div className="app">
 
-      {/* Navbar */}
-      <nav className="navbar">
+      {/* LOGIN */}
+      {page === 'login' && (
+        <Login
+          onLoginSuccess={handleLoginSuccess}
+          onGoSignup={() => setPage('signup')}
+        />
+      )}
 
-        <div className="logo">
-          <span>F</span> FresherConnect
-        </div>
+      {/* SIGNUP */}
+      {page === 'signup' && (
+        <Signup
+          onSignupSuccess={() => setPage('login')}
+          onGoLogin={() => setPage('login')}
+        />
+      )}
 
-        <div className="nav-links">
-
-          <a href="#home">
-            Home
-          </a>
-
-          <a href="#features">
-            Features
-          </a>
-
-          <a href="#about">
-            About
-          </a>
-
-          <button
-            className="login-btn"
-            onClick={() => setPage('login')}
-          >
-            Login
-          </button>
-
-          <button
-            className="signup-btn"
-            onClick={() => setPage('signup')}
-          >
-            Sign Up
-          </button>
-
-        </div>
-
-      </nav>
-
-      {/* Hero Section */}
-      <section
-        id="home"
-        className="hero-section"
-      >
-
-        <div className="hero-content">
-
-          <p className="tagline">
-            WELCOME TO FRESHERCONNECT
-          </p>
-
-          <h1>
-            Start Your Career
-            <br />
-            <span>With Confidence.</span>
-          </h1>
-
-          <p className="hero-text">
-            FresherConnect helps students and fresh graduates discover
-            opportunities, build their skills, and connect with the right
-            career path.
-          </p>
-
-          <div className="hero-buttons">
+      {/* DASHBOARD */}
+      {page === 'dashboard' && user && (
+        <>
+          <nav className="navbar">
+            <div className="logo">
+              Fresher<span>Connect</span>
+            </div>
 
             <button
-              className="primary-btn"
-              onClick={() => setPage('signup')}
+              className="login-btn"
+              onClick={handleLogout}
             >
-              Get Started →
+              Logout
             </button>
+          </nav>
 
-            <button
-              className="secondary-btn"
-              onClick={() => setPage('signup')}
+          <main className="dashboard-page">
+
+            <section className="dashboard-hero">
+              <div className="dashboard-content">
+
+                <p
+                  style={{
+                    fontSize: '18px',
+                    color: '#64748b',
+                    marginBottom: '10px',
+                  }}
+                >
+                  Welcome back, {user.full_name}! 👋
+                </p>
+
+                <h1 className="dashboard-title">
+                  Your Career <span>Dashboard</span>
+                </h1>
+
+                <p>
+                  Analyze your resume, identify skill gaps and prepare
+                  yourself for your dream career.
+                </p>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                    marginTop: '28px',
+                  }}
+                >
+
+                  <button
+                    className="hero-btn"
+                    onClick={() => setPage('profile')}
+                  >
+                    👤 My Profile
+                  </button>
+
+                  <button
+                    className="hero-btn"
+                    onClick={() => setPage('upload')}
+                  >
+                    📄 Upload Resume
+                  </button>
+
+                  <button
+                    className="hero-btn"
+                    onClick={() => setPage('history')}
+                  >
+                    📚 Resume History
+                  </button>
+
+                  <button
+                    className="hero-btn"
+                    onClick={() => setPage('training')}
+                  >
+                    🎓 Training & Learning
+                  </button>
+
+                </div>
+
+              </div>
+            </section>
+
+            {/* PROFILE COMPLETION */}
+            <section
+              style={{
+                maxWidth: '1100px',
+                margin: '0 auto',
+                padding: '20px',
+              }}
             >
-              Explore Opportunities
-            </button>
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '16px',
+                  padding: '25px',
+                  boxShadow: '0 8px 25px rgba(15, 23, 42, 0.06)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '12px',
+                  }}
+                >
+                  <h3 style={{ margin: 0 }}>
+                    Profile Completion
+                  </h3>
 
-          </div>
+                  <strong
+                    style={{
+                      color: '#2563eb',
+                      fontSize: '20px',
+                    }}
+                  >
+                    {profileCompletion}%
+                  </strong>
+                </div>
 
-        </div>
+                <div
+                  style={{
+                    width: '100%',
+                    height: '10px',
+                    background: '#e2e8f0',
+                    borderRadius: '20px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${profileCompletion}%`,
+                      height: '100%',
+                      background: '#2563eb',
+                      borderRadius: '20px',
+                      transition: 'width 0.3s ease',
+                    }}
+                  />
+                </div>
 
-        <div className="hero-card">
+                {profileCompletion === 100 && (
+                  <p
+                    style={{
+                      marginTop: '12px',
+                      marginBottom: 0,
+                      color: '#16a34a',
+                    }}
+                  >
+                    Your profile is complete! 🎉
+                  </p>
+                )}
+              </div>
+            </section>
 
-          <div className="card-icon">
-            🚀
-          </div>
+            {/* CAREER TOOLKIT */}
+            <section className="features-section">
 
-          <h2>
-            Your Career Starts Here
-          </h2>
+              <div className="section-heading">
+                <h2>Career Toolkit</h2>
+                <p>
+                  Everything you need to become internship-ready.
+                </p>
+              </div>
 
-          <p>
-            Learn skills, discover opportunities and connect with employers.
-          </p>
+              <div className="features-grid">
 
-          <div className="stats">
+                <div className="feature-card">
+                  <div className="feature-icon">📄</div>
+                  <h3>Resume Analysis</h3>
+                  <p>
+                    Analyze your resume against your target role
+                    and discover your skill gaps.
+                  </p>
+                </div>
 
-            <div>
-              <strong>500+</strong>
-              <small>Opportunities</small>
-            </div>
+                <div className="feature-card">
+                  <div className="feature-icon">🎓</div>
+                  <h3>Training & Learning</h3>
+                  <p>
+                    Learn the skills required for your target
+                    internship or fresher role.
+                  </p>
+                </div>
 
-            <div>
-              <strong>100+</strong>
-              <small>Companies</small>
-            </div>
+                <div className="feature-card">
+                  <div className="feature-icon">💼</div>
+                  <h3>Internships</h3>
+                  <p>
+                    Discover internship opportunities based on
+                    your skills and career goals.
+                  </p>
+                </div>
 
-            <div>
-              <strong>1K+</strong>
-              <small>Students</small>
-            </div>
+                <div className="feature-card">
+                  <div className="feature-icon">📊</div>
+                  <h3>Application Tracking</h3>
+                  <p>
+                    Track your internship and job applications
+                    in one place.
+                  </p>
+                </div>
 
-          </div>
+              </div>
 
-        </div>
+            </section>
 
-      </section>
+          </main>
+        </>
+      )}
 
-      {/* Features */}
-      <section
-        id="features"
-        className="features-section"
-      >
+      {/* PROFILE */}
+      {page === 'profile' && user && (
+        <Profile
+          user={user}
+          onBack={() => {
+            setPage('dashboard')
+            loadProfileCompletion()
+          }}
+        />
+      )}
 
-        <p className="section-label">
-          WHAT WE OFFER
-        </p>
+      {/* RESUME UPLOAD */}
+      {page === 'upload' && user && (
+        <ResumeUpload
+          user={user}
+          onBack={() => setPage('dashboard')}
+          onAnalysisComplete={handleAnalysisComplete}
+        />
+      )}
 
-        <h2>
-          Everything You Need To Start
-        </h2>
+      {/* RESULTS */}
+      {page === 'results' && (
+        <Results
+          analysis={analysis}
+          onBack={() => setPage('dashboard')}
+        />
+      )}
 
-        <div className="features">
+      {/* RESUME HISTORY */}
+      {page === 'history' && user && (
+        <ResumeHistory
+          user={user}
+          onBack={() => setPage('dashboard')}
+          onViewAnalysis={(data) => {
+            setAnalysis(data)
+            setPage('history-results')
+          }}
+        />
+      )}
 
-          <div className="feature-card">
+      {/* HISTORY RESULT */}
+      {page === 'history-results' && (
+        <Results
+          analysis={analysis}
+          onBack={() => setPage('history')}
+        />
+      )}
 
-            <div className="feature-icon">
-              💼
-            </div>
-
-            <h3>
-              Find Opportunities
-            </h3>
-
-            <p>
-              Discover internships, jobs and opportunities designed for
-              freshers.
-            </p>
-
-          </div>
-
-          <div className="feature-card">
-
-            <div className="feature-icon">
-              📚
-            </div>
-
-            <h3>
-              Build Your Skills
-            </h3>
-
-            <p>
-              Improve your technical and professional skills with useful
-              resources.
-            </p>
-
-          </div>
-
-          <div className="feature-card">
-
-            <div className="feature-icon">
-              🤝
-            </div>
-
-            <h3>
-              Connect
-            </h3>
-
-            <p>
-              Connect with companies, recruiters and other students.
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      {/* About */}
-      <section
-        id="about"
-        className="about-section"
-      >
-
-        <div>
-
-          <p className="section-label">
-            ABOUT FRESHERCONNECT
-          </p>
-
-          <h2>
-            Making the first career step easier.
-          </h2>
-
-        </div>
-
-        <p>
-          FresherConnect is designed to bridge the gap between students and
-          the professional world. Our goal is to make it easier for freshers
-          to find opportunities and prepare themselves for their careers.
-        </p>
-
-      </section>
-
-      {/* Footer */}
-      <footer>
-
-        <div className="logo">
-          <span>F</span> FresherConnect
-        </div>
-
-        <p>
-          © 2026 FresherConnect. All rights reserved.
-        </p>
-
-      </footer>
+      {/* TRAINING */}
+      {page === 'training' && user && (
+        <Training
+          onBack={() => setPage('dashboard')}
+        />
+      )}
 
     </div>
   )
