@@ -15,7 +15,6 @@ function Signup({ onBack, onLogin }) {
     setLoading(true)
     setMessage('')
 
-    // Create account in Supabase Authentication
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -32,7 +31,7 @@ function Signup({ onBack, onLogin }) {
       return
     }
 
-    // Create profile linked to the Supabase Auth user
+    // Create profile linked to Auth user
     if (data.user) {
       const { error: profileError } = await supabase
         .from('profiles')
@@ -66,7 +65,9 @@ function Signup({ onBack, onLogin }) {
     <div className="auth-page">
       <div className="auth-card">
 
+        {/* BACK BUTTON */}
         <button
+          type="button"
           className="back-btn"
           onClick={onBack}
         >
@@ -112,13 +113,14 @@ function Signup({ onBack, onLogin }) {
             placeholder="Create a password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            minLength="6"
+            minLength={6}
             required
           />
 
+          {/* ONLY THIS BUTTON SUBMITS THE FORM */}
           <button
-            className="auth-submit"
             type="submit"
+            className="auth-submit"
             disabled={loading}
           >
             {loading
@@ -137,7 +139,11 @@ function Signup({ onBack, onLogin }) {
         <p className="switch-auth">
           Already have an account?
 
-          <button onClick={onLogin}>
+          {/* LOGIN BUTTON */}
+          <button
+            type="button"
+            onClick={onLogin}
+          >
             Login
           </button>
         </p>
