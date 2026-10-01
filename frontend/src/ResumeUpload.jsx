@@ -60,7 +60,7 @@ function ResumeUpload({ user, onBack, onAnalysisComplete }) {
 
     try {
       const response = await fetch(
-        'http://127.0.0.1:5000/analyze-resume',
+        'https://fresherconnect.onrender.com/analyze-resume',
         {
           method: 'POST',
           body: formData,
