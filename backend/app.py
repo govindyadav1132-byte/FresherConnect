@@ -1,6 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from PyPDF2 import PdfReader
+try:
+    from pypdf import PdfReader
+except ImportError:
+    from PyPDF2 import PdfReader
 import re
 
 app = Flask(__name__)
@@ -506,6 +509,67 @@ def analyze_resume_quality(text):
 
 
 # =========================================================
+# DETAILED SKILL CATEGORIZATION (Proposal Objective)
+# =========================================================
+
+def categorize_skills(text, required_skills):
+    """
+    Categorizes skills into:
+    - matched: found in resume
+    - demonstrated: found with practical context (projects, developed, internship, etc.)
+    - weak: mentioned only once in passing without clear depth
+    - missing: not found
+    """
+    matched = []
+    demonstrated = []
+    weak = []
+    missing = []
+
+    text_lower = text.lower()
+    practical_keywords = [
+        "project", "projects", "built", "developed", "implemented", "created",
+        "designed", "application", "app", "internship", "worked", "experience",
+        "github", "system", "api", "database", "model", "pipeline", "component"
+    ]
+
+    for skill in required_skills:
+        aliases = SKILL_ALIASES.get(skill, [skill.lower()])
+        matches = []
+        for alias in aliases:
+            pattern = r"(?<![a-zA-Z0-9])" + re.escape(alias) + r"(?![a-zA-Z0-9])"
+            for m in re.finditer(pattern, text, re.IGNORECASE):
+                matches.append(m)
+
+        if not matches:
+            missing.append(skill)
+        else:
+            is_demonstrated = False
+            for m in matches:
+                start = max(0, m.start() - 150)
+                end = min(len(text), m.end() + 150)
+                context = text_lower[start:end]
+                if any(kw in context for kw in practical_keywords):
+                    is_demonstrated = True
+                    break
+
+            if is_demonstrated:
+                demonstrated.append(skill)
+                matched.append(skill)
+            elif len(matches) == 1:
+                weak.append(skill)
+                matched.append(skill)
+            else:
+                matched.append(skill)
+
+    return {
+        "matched": matched,
+        "demonstrated": demonstrated,
+        "weak": weak,
+        "missing": missing,
+    }
+
+
+# =========================================================
 # RESUME ANALYSIS API
 # =========================================================
 
@@ -547,49 +611,50 @@ def analyze_resume():
 
 
     try:
-
-        reader = PdfReader(file)
-
-        pages = len(reader.pages)
-
+        pages = 0
         extracted_text = ""
 
+        # Try PdfReader (PyPDF2 / pypdf)
+        reader = PdfReader(file)
+        pages = len(reader.pages)
+
         for page in reader.pages:
-
             page_text = page.extract_text()
-
             if page_text:
                 extracted_text += page_text + "\n"
 
-
         if not extracted_text.strip():
-
             return jsonify({
-                "error": "Could not extract text from the PDF."
+                "error": "Could not extract text from the PDF. Please check if the file is scanned or empty."
             }), 400
 
 
         # =================================================
-        # SKILL ANALYSIS
+        # EXPLAINABLE SKILL ANALYSIS (PROPOSAL OBJECTIVE)
         # =================================================
 
         required_skills = ROLE_SKILLS[role]
+        categorized = categorize_skills(extracted_text, required_skills)
 
-        found_skills = []
+        found_skills = categorized["matched"]
+        demonstrated_skills = categorized["demonstrated"]
+        weak_skills = categorized["weak"]
+        missing_skills = categorized["missing"]
 
-        missing_skills = []
+        # Resume Quality Analysis
+        resume_quality = analyze_resume_quality(extracted_text)
+        quality_score = resume_quality["quality_score"]
 
-        for skill in required_skills:
-
-            if skill_exists(extracted_text, skill):
-                found_skills.append(skill)
-            else:
-                missing_skills.append(skill)
-
+        # Explainable 0-100 Match Score:
+        # 60% skill presence + 20% practical evidence + 20% structure/completeness
+        skill_coverage_ratio = len(found_skills) / len(required_skills)
+        demo_ratio = (len(demonstrated_skills) / len(required_skills)) if required_skills else 0
+        quality_ratio = quality_score / 100
 
         skill_score = round(
-            (len(found_skills) / len(required_skills)) * 100
+            (skill_coverage_ratio * 60) + (demo_ratio * 20) + (quality_ratio * 20)
         )
+        skill_score = min(100, max(0, skill_score))
 
 
         # =================================================
@@ -599,23 +664,21 @@ def analyze_resume():
         recommendations = []
 
         for skill in missing_skills:
-
             recommendations.append({
                 "skill": skill,
+                "status": "Missing",
                 "recommendation": RECOMMENDATIONS.get(
                     skill,
                     f"Learn and practice {skill} through projects and tutorials."
                 )
             })
 
-
-        # =================================================
-        # RESUME QUALITY
-        # =================================================
-
-        resume_quality = analyze_resume_quality(
-            extracted_text
-        )
+        for skill in weak_skills:
+            recommendations.append({
+                "skill": skill,
+                "status": "Needs Practice",
+                "recommendation": f"Add project evidence or practical implementation of {skill} to strengthen your resume."
+            })
 
 
         # =================================================
@@ -623,31 +686,20 @@ def analyze_resume():
         # =================================================
 
         return jsonify({
-
             "message": "Resume analyzed successfully!",
-
             "filename": file.filename,
-
             "pages": pages,
-
             "role": role,
-
             "required_skills": required_skills,
-
             "skills": found_skills,
-
+            "demonstrated_skills": demonstrated_skills,
+            "weak_skills": weak_skills,
             "missing_skills": missing_skills,
-
             "skill_score": skill_score,
-
             "recommendations": recommendations,
-
             "resume_quality": resume_quality,
-
-            "quality_score": resume_quality["quality_score"],
-
+            "quality_score": quality_score,
             "extracted_text": extracted_text,
-
         })
 
 

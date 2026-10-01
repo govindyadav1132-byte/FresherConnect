@@ -2,11 +2,25 @@ import React, { useEffect, useState } from 'react'
 import './App.css'
 import { supabase } from './supabaseClient'
 
-function Training({ onBack }) {
+function Training({ user, onBack }) {
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [completedLessons, setCompletedLessons] = useState({})
   const [missingSkills, setMissingSkills] = useState([])
   const [loadingSkills, setLoadingSkills] = useState(true)
+  const [evidenceList, setEvidenceList] = useState(() => {
+    try {
+      const saved = localStorage.getItem('fc_training_evidence')
+      return saved ? JSON.parse(saved) : {}
+    } catch {
+      return {}
+    }
+  })
+  const [showEvidenceModal, setShowEvidenceModal] = useState(false)
+  const [evidenceForm, setEvidenceForm] = useState({
+    githubUrl: '',
+    demoUrl: '',
+    notes: '',
+  })
 
   const courses = [
     {
@@ -211,11 +225,9 @@ function Training({ onBack }) {
   async function loadMissingSkills() {
     setLoadingSkills(true)
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const userId = user?.id || (await supabase.auth.getUser()).data?.user?.id
 
-    if (!user) {
+    if (!userId) {
       setLoadingSkills(false)
       return
     }
@@ -223,7 +235,7 @@ function Training({ onBack }) {
     const { data, error } = await supabase
       .from('resume_analysis')
       .select('missing_skills, role')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -655,18 +667,137 @@ function Training({ onBack }) {
                 {selectedCourse.practical}
               </p>
 
-              <button
-                className="hero-btn"
-                style={{ marginTop: '10px' }}
-              >
-                Submit Evidence
-              </button>
+              {evidenceList[selectedCourse.id] ? (
+                <div style={{ marginTop: '16px', padding: '16px', background: '#ecfdf5', borderRadius: '12px', border: '1px solid #a7f3d0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#065f46', fontWeight: '800', marginBottom: '8px' }}>
+                    <span>✅</span> OJT EVIDENCE VERIFIED & LOGGED
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#047857', marginBottom: '4px' }}>
+                    <strong>GitHub Link:</strong>{' '}
+                    <a href={evidenceList[selectedCourse.id].githubUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>
+                      {evidenceList[selectedCourse.id].githubUrl || 'Provided'}
+                    </a>
+                  </div>
+                  {evidenceList[selectedCourse.id].demoUrl && (
+                    <div style={{ fontSize: '13px', color: '#047857', marginBottom: '4px' }}>
+                      <strong>Demo URL:</strong> {evidenceList[selectedCourse.id].demoUrl}
+                    </div>
+                  )}
+                  {evidenceList[selectedCourse.id].notes && (
+                    <div style={{ fontSize: '13px', color: '#047857', marginTop: '6px' }}>
+                      <strong>Summary:</strong> {evidenceList[selectedCourse.id].notes}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEvidenceForm(evidenceList[selectedCourse.id])
+                      setShowEvidenceModal(true)
+                    }}
+                    style={{ marginTop: '10px', background: '#ffffff', border: '1px solid #059669', color: '#059669', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                  >
+                    Edit Submitted Evidence
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="hero-btn"
+                  onClick={() => setShowEvidenceModal(true)}
+                  style={{ marginTop: '14px' }}
+                >
+                  🚀 Submit Practical Evidence
+                </button>
+              )}
 
             </div>
 
           </div>
 
         </section>
+
+        {/* EVIDENCE SUBMISSION MODAL */}
+        {showEvidenceModal && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div style={{ background: '#ffffff', borderRadius: '18px', width: '520px', maxWidth: '100%', padding: '28px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+              <h2 style={{ margin: '0 0 6px', color: '#172033', fontSize: '20px' }}>
+                Submit Practical Evidence (OJT)
+              </h2>
+              <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 18px' }}>
+                Submit proof of your practical implementation for <strong>{selectedCourse.title}</strong> to demonstrate skill evidence on your profile.
+              </p>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const updated = {
+                    ...evidenceList,
+                    [selectedCourse.id]: {
+                      ...evidenceForm,
+                      submittedAt: new Date().toISOString(),
+                    },
+                  }
+                  setEvidenceList(updated)
+                  localStorage.setItem('fc_training_evidence', JSON.stringify(updated))
+                  setShowEvidenceModal(false)
+                }}
+              >
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                    GITHUB REPOSITORY URL *
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://github.com/your-username/project-repo"
+                    value={evidenceForm.githubUrl}
+                    onChange={(e) => setEvidenceForm({ ...evidenceForm, githubUrl: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px' }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                    LIVE DEMO URL (OPTIONAL)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://my-project.vercel.app or similar"
+                    value={evidenceForm.demoUrl}
+                    onChange={(e) => setEvidenceForm({ ...evidenceForm, demoUrl: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px' }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '18px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
+                    BRIEF WORK SUMMARY
+                  </label>
+                  <textarea
+                    rows="3"
+                    placeholder="Describe how you completed the practical task and what you learned..."
+                    value={evidenceForm.notes}
+                    onChange={(e) => setEvidenceForm({ ...evidenceForm, notes: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowEvidenceModal(false)}
+                    style={{ padding: '9px 16px', border: '1px solid #cbd5e1', borderRadius: '8px', background: '#fff', fontWeight: '600', cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="hero-btn" style={{ padding: '9px 18px' }}>
+                    Verify & Submit Evidence
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
       </div>
     )

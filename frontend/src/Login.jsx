@@ -65,13 +65,15 @@ function Login({ onBack, onSignup, onLoginSuccess }) {
       <div className="auth-card">
 
         {/* BACK BUTTON */}
-        <button
-          type="button"
-          className="back-btn"
-          onClick={onBack}
-        >
-          ← Back
-        </button>
+        {onBack && (
+          <button
+            type="button"
+            className="back-btn"
+            onClick={onBack}
+          >
+            ← Back
+          </button>
+        )}
 
         <div className="auth-logo">
           <span>F</span> FresherConnect

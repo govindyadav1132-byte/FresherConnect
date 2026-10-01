@@ -70,239 +70,357 @@ function ResumeUpload({ user, onBack, onAnalysisComplete }) {
       const data = await response.json()
 
       if (!response.ok) {
-        setMessage(
-          data.error || 'Resume analysis failed.'
-        )
+        setMessage(data.error || 'Resume analysis failed.')
         return
       }
 
-      // =====================================================
-      // SAVE ANALYSIS TO SUPABASE
-      // =====================================================
-
+      // Save analysis to Supabase
       const { error: saveError } = await supabase
         .from('resume_analysis')
         .insert([
           {
             user_id: user.id,
-
             filename: data.filename,
-
             role: data.role,
-
             pages: data.pages,
-
             skill_score: data.skill_score,
-
             skills: data.skills,
-
             missing_skills: data.missing_skills,
-
             recommendations: data.recommendations,
-
-            // NEW
             quality_score: data.quality_score,
-
-            // NEW
             resume_quality: data.resume_quality,
           },
         ])
 
       if (saveError) {
-        console.error(
-          'Supabase save error:',
-          saveError
-        )
-
-        setMessage(
-          'Resume analyzed, but the analysis could not be saved.'
-        )
-
-        if (onAnalysisComplete) {
-          onAnalysisComplete(data)
-        }
-
-        return
+        console.error('Supabase save error:', saveError)
+        data.save_warning =
+          'Resume analyzed, but could not be saved to your history: ' + saveError.message
       }
 
-      // =====================================================
-      // SHOW RESULTS
-      // =====================================================
-
+      // Show results
       if (onAnalysisComplete) {
         onAnalysisComplete(data)
       }
-
     } catch (error) {
-      console.error(
-        'Analysis error:',
-        error
-      )
+      console.error('Analysis error:', error)
 
       setMessage(
         'Could not connect to the backend. Make sure Flask is running.'
       )
-
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="auth-page">
+    <div className="resume-page">
 
-      <div className="auth-card">
+      {/* HEADER */}
+      <div className="resume-page-header">
 
         <button
-          className="back-btn"
+          type="button"
+          className="resume-back-btn"
           onClick={onBack}
         >
-          ← Back to Dashboard
+          ← Dashboard
         </button>
 
-        <div className="auth-logo">
-          <span>F</span> FresherConnect
+        <div>
+          <h1>Resume Analysis</h1>
+
+          <p>
+            Analyze your resume against your target job role.
+          </p>
         </div>
 
-        <h1>
-          Upload Your Resume
-        </h1>
+      </div>
 
-        <p className="auth-subtitle">
-          Upload your resume and select the job role you want to target.
-        </p>
+      {/* MAIN CONTENT */}
+      <div className="resume-layout">
 
-        <form onSubmit={handleUpload}>
+        {/* LEFT SIDE */}
+        <div className="resume-main-card">
 
-          {/* ================================================= */}
-          {/* TARGET ROLE */}
-          {/* ================================================= */}
+          <div className="resume-card-header">
 
-          <label>
-            Target Job Role
-          </label>
+            <div>
+              <h2>Upload Your Resume</h2>
 
-          <select
-            value={role}
-            onChange={(e) => {
-              setRole(e.target.value)
-              setMessage('')
-            }}
-          >
-
-            <option value="">
-              Select a job role
-            </option>
-
-            <option value="Frontend Developer">
-              Frontend Developer
-            </option>
-
-            <option value="Backend Developer">
-              Backend Developer
-            </option>
-
-            <option value="Full Stack Developer">
-              Full Stack Developer
-            </option>
-
-            <option value="Python Developer">
-              Python Developer
-            </option>
-
-            <option value="Java Developer">
-              Java Developer
-            </option>
-
-            <option value="Data Analyst">
-              Data Analyst
-            </option>
-
-            <option value="Data Scientist">
-              Data Scientist
-            </option>
-
-            <option value="Machine Learning Engineer">
-              Machine Learning Engineer
-            </option>
-
-            <option value="Android Developer">
-              Android Developer
-            </option>
-
-          </select>
-
-
-          {/* ================================================= */}
-          {/* RESUME FILE */}
-          {/* ================================================= */}
-
-          <label>
-            Select Resume
-          </label>
-
-          <input
-            type="file"
-            accept=".pdf,application/pdf"
-            onChange={handleFileChange}
-          />
-
-
-          {/* ================================================= */}
-          {/* SELECTED FILE */}
-          {/* ================================================= */}
-
-          {file && (
-
-            <div
-              style={{
-                marginTop: '12px',
-                padding: '12px 15px',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '9px',
-                color: '#475569',
-                fontSize: '14px',
-              }}
-            >
-              📄 {file.name}
+              <p>
+                Upload a PDF and select the role you're targeting.
+              </p>
             </div>
 
+            <div className="resume-header-icon">
+              📄
+            </div>
+
+          </div>
+
+          <form onSubmit={handleUpload}>
+
+            {/* TARGET ROLE */}
+            <div className="resume-form-group">
+
+              <label>
+                Target Job Role
+              </label>
+
+              <select
+                className="resume-select"
+                value={role}
+                onChange={(e) => {
+                  setRole(e.target.value)
+                  setMessage('')
+                }}
+              >
+                <option value="">
+                  Select a job role
+                </option>
+
+                <option value="Frontend Developer">
+                  Frontend Developer
+                </option>
+
+                <option value="Backend Developer">
+                  Backend Developer
+                </option>
+
+                <option value="Full Stack Developer">
+                  Full Stack Developer
+                </option>
+
+                <option value="Python Developer">
+                  Python Developer
+                </option>
+
+                <option value="Java Developer">
+                  Java Developer
+                </option>
+
+                <option value="Data Analyst">
+                  Data Analyst
+                </option>
+
+                <option value="Data Scientist">
+                  Data Scientist
+                </option>
+
+                <option value="Machine Learning Engineer">
+                  Machine Learning Engineer
+                </option>
+
+                <option value="Android Developer">
+                  Android Developer
+                </option>
+              </select>
+
+              <small>
+                Choose the role you want your resume evaluated for.
+              </small>
+
+            </div>
+
+            {/* FILE UPLOAD */}
+            <div className="resume-form-group">
+
+              <label>
+                Resume
+              </label>
+
+              <label
+                className={`resume-dropzone ${
+                  file ? 'resume-dropzone-selected' : ''
+                }`}
+              >
+
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={handleFileChange}
+                  hidden
+                />
+
+                {!file ? (
+                  <>
+                    <div className="upload-big-icon">
+                      ↑
+                    </div>
+
+                    <h3>
+                      Choose your resume
+                    </h3>
+
+                    <p>
+                      Click here to browse your files
+                    </p>
+
+                    <span>
+                      PDF only • Maximum 5 MB
+                    </span>
+                  </>
+                ) : (
+                  <div className="selected-resume">
+
+                    <div className="pdf-icon">
+                      PDF
+                    </div>
+
+                    <div className="selected-resume-info">
+
+                      <strong>
+                        {file.name}
+                      </strong>
+
+                      <span>
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </span>
+
+                    </div>
+
+                    <div className="file-check">
+                      ✓
+                    </div>
+
+                  </div>
+                )}
+
+              </label>
+
+            </div>
+
+            {/* ANALYZE BUTTON */}
+            <button
+              className="analyze-resume-btn"
+              type="submit"
+              disabled={!file || !role || loading}
+            >
+
+              {loading ? (
+                <>
+                  <span className="loading-spinner"></span>
+                  Analyzing Resume...
+                </>
+              ) : (
+                <>
+                  Analyze Resume
+                  <span>→</span>
+                </>
+              )}
+
+            </button>
+
+          </form>
+
+          {/* MESSAGE */}
+          {message && (
+            <div className="resume-message">
+              ⚠ {message}
+            </div>
           )}
 
+        </div>
 
-          {/* ================================================= */}
-          {/* ANALYZE BUTTON */}
-          {/* ================================================= */}
+        {/* RIGHT SIDE */}
+        <aside className="resume-side-card">
 
-          <button
-            className="auth-submit"
-            type="submit"
-            disabled={
-              !file ||
-              !role ||
-              loading
-            }
-          >
-            {loading
-              ? 'Analyzing Resume...'
-              : 'Analyze Resume →'}
-          </button>
+          <h2>
+            How it works
+          </h2>
 
-        </form>
-
-
-        {/* ================================================= */}
-        {/* MESSAGE */}
-        {/* ================================================= */}
-
-        {message && (
-
-          <p className="auth-message">
-            {message}
+          <p className="side-description">
+            FresherConnect checks your resume against the
+            skills required for your selected role.
           </p>
 
-        )}
+          <div className="resume-step">
+
+            <div className="step-number">
+              1
+            </div>
+
+            <div>
+              <h3>
+                Upload Resume
+              </h3>
+
+              <p>
+                Upload your latest PDF resume.
+              </p>
+            </div>
+
+          </div>
+
+          <div className="resume-step">
+
+            <div className="step-number">
+              2
+            </div>
+
+            <div>
+              <h3>
+                Select Target Role
+              </h3>
+
+              <p>
+                Tell us which career path you're targeting.
+              </p>
+            </div>
+
+          </div>
+
+          <div className="resume-step">
+
+            <div className="step-number">
+              3
+            </div>
+
+            <div>
+              <h3>
+                Get Your Score
+              </h3>
+
+              <p>
+                See your role-specific skill match.
+              </p>
+            </div>
+
+          </div>
+
+          <div className="resume-step">
+
+            <div className="step-number">
+              4
+            </div>
+
+            <div>
+              <h3>
+                Find Skill Gaps
+              </h3>
+
+              <p>
+                Discover what you should learn next.
+              </p>
+            </div>
+
+          </div>
+
+          <div className="resume-tip">
+
+            <strong>
+              💡 Tip
+            </strong>
+
+            <p>
+              Keep your resume updated with projects,
+              technical skills and relevant experience.
+            </p>
+
+          </div>
+
+        </aside>
 
       </div>
 

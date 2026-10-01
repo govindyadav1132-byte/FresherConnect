@@ -20,7 +20,10 @@ ChartJS.register(
 function Results({
   analysis,
   onBack,
-  backLabel = 'Upload Another Resume',
+  backLabel = 'Back to Dashboard',
+  onNavigateTraining,
+  onNavigateInternships,
+  onNavigateBuilder,
 }) {
   if (!analysis) {
     return (
@@ -54,6 +57,8 @@ function Results({
   // =====================================================
 
   const skills = analysis.skills || []
+  const demonstratedSkills = analysis.demonstrated_skills || []
+  const weakSkills = analysis.weak_skills || []
   const missingSkills = analysis.missing_skills || []
   const recommendations = analysis.recommendations || []
 
@@ -177,7 +182,7 @@ function Results({
   }
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page results-page">
 
       {/* ================================================= */}
       {/* NAVBAR */}
@@ -242,6 +247,27 @@ function Results({
             margin: '0 auto',
           }}
         >
+
+          {/* SAVE WARNING BANNER */}
+          {analysis.save_warning && (
+            <div
+              style={{
+                background: '#fff7ed',
+                border: '1px solid #fed7aa',
+                color: '#c2410c',
+                padding: '14px 18px',
+                borderRadius: '12px',
+                marginBottom: '20px',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+              }}
+            >
+              <span>⚠️</span>
+              <span>{analysis.save_warning}</span>
+            </div>
+          )}
 
           {/* ================================================= */}
           {/* TARGET ROLE */}
@@ -725,7 +751,7 @@ function Results({
 
 
           {/* ================================================= */}
-          {/* SKILLS + SKILL GAPS */}
+          {/* EXPLAINABLE SKILLS CATEGORIZATION (PROPOSAL) */}
           {/* ================================================= */}
 
           <div
@@ -738,7 +764,7 @@ function Results({
             }}
           >
 
-            {/* SKILLS FOUND */}
+            {/* SKILLS FOUND (MATCHED & DEMONSTRATED) */}
 
             <div
               style={{
@@ -751,14 +777,23 @@ function Results({
               }}
             >
 
-              <h2
-                style={{
-                  marginTop: 0,
-                  color: '#172033',
-                }}
-              >
-                Skills Found
-              </h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h2
+                  style={{
+                    margin: 0,
+                    color: '#172033',
+                  }}
+                >
+                  Matched Skills
+                </h2>
+                <span style={{ fontSize: '12px', background: '#eff6ff', color: '#2563eb', padding: '3px 8px', borderRadius: '12px', fontWeight: '700' }}>
+                  {skills.length} Detected
+                </span>
+              </div>
+
+              <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 15px' }}>
+                Skills found in your resume matching role requirements.
+              </p>
 
               {skills.length === 0 ? (
 
@@ -780,23 +815,33 @@ function Results({
                   }}
                 >
 
-                  {skills.map((skill, index) => (
-
-                    <span
-                      key={index}
-                      style={{
-                        padding: '8px 14px',
-                        background: '#eff6ff',
-                        color: '#2563eb',
-                        borderRadius: '20px',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                      }}
-                    >
-                      ✓ {skill}
-                    </span>
-
-                  ))}
+                  {skills.map((skill, index) => {
+                    const isDemonstrated = demonstratedSkills.includes(skill)
+                    return (
+                      <span
+                        key={index}
+                        style={{
+                          padding: '7px 13px',
+                          background: isDemonstrated ? '#f0fdf4' : '#eff6ff',
+                          border: isDemonstrated ? '1px solid #bbf7d0' : '1px solid #bfdbfe',
+                          color: isDemonstrated ? '#15803d' : '#2563eb',
+                          borderRadius: '20px',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        {isDemonstrated ? '⭐' : '✓'} {skill}
+                        {isDemonstrated && (
+                          <small style={{ fontSize: '10px', background: '#dcfce7', color: '#166534', padding: '1px 5px', borderRadius: '4px' }}>
+                            Demonstrated
+                          </small>
+                        )}
+                      </span>
+                    )
+                  })}
 
                 </div>
 
@@ -805,7 +850,7 @@ function Results({
             </div>
 
 
-            {/* SKILL GAPS */}
+            {/* SKILL GAPS & WEAK SKILLS */}
 
             <div
               style={{
@@ -818,16 +863,25 @@ function Results({
               }}
             >
 
-              <h2
-                style={{
-                  marginTop: 0,
-                  color: '#172033',
-                }}
-              >
-                Skill Gaps
-              </h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h2
+                  style={{
+                    margin: 0,
+                    color: '#172033',
+                  }}
+                >
+                  Skill Gaps & Weak Areas
+                </h2>
+                <span style={{ fontSize: '12px', background: '#fef2f2', color: '#dc2626', padding: '3px 8px', borderRadius: '12px', fontWeight: '700' }}>
+                  {missingSkills.length + weakSkills.length} Needs Attention
+                </span>
+              </div>
 
-              {missingSkills.length === 0 ? (
+              <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 15px' }}>
+                Missing or weakly supported skills required for this role.
+              </p>
+
+              {missingSkills.length === 0 && weakSkills.length === 0 ? (
 
                 <p
                   style={{
@@ -835,7 +889,7 @@ function Results({
                     fontWeight: '600',
                   }}
                 >
-                  🎉 No skill gaps detected!
+                  🎉 No skill gaps detected! Your resume matches all core skills.
                 </p>
 
               ) : (
@@ -851,17 +905,49 @@ function Results({
                   {missingSkills.map((skill, index) => (
 
                     <span
-                      key={index}
+                      key={`missing-${index}`}
                       style={{
-                        padding: '8px 14px',
+                        padding: '7px 13px',
                         background: '#fef2f2',
+                        border: '1px solid #fecaca',
                         color: '#dc2626',
                         borderRadius: '20px',
-                        fontSize: '14px',
+                        fontSize: '13px',
                         fontWeight: '600',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
                       }}
                     >
                       ⚠ {skill}
+                      <small style={{ fontSize: '10px', background: '#fee2e2', color: '#991b1b', padding: '1px 5px', borderRadius: '4px' }}>
+                        Missing
+                      </small>
+                    </span>
+
+                  ))}
+
+                  {weakSkills.map((skill, index) => (
+
+                    <span
+                      key={`weak-${index}`}
+                      style={{
+                        padding: '7px 13px',
+                        background: '#fffbeb',
+                        border: '1px solid #fde68a',
+                        color: '#b45309',
+                        borderRadius: '20px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      ⚡ {skill}
+                      <small style={{ fontSize: '10px', background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: '4px' }}>
+                        Needs Projects
+                      </small>
                     </span>
 
                   ))}
@@ -972,6 +1058,100 @@ function Results({
             </div>
 
           )}
+
+          {/* ================================================= */}
+          {/* CAREER NEXT STEPS (PROPOSAL INTEGRATION) */}
+          {/* ================================================= */}
+
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+              color: '#ffffff',
+              borderRadius: '18px',
+              padding: '30px',
+              marginTop: '30px',
+              boxShadow: '0 10px 30px rgba(15, 23, 42, 0.15)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+              <div>
+                <h3 style={{ margin: '0 0 6px', fontSize: '20px', color: '#ffffff' }}>
+                  Ready to take the next step in your preparation journey?
+                </h3>
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '14px' }}>
+                  Close your skill gaps through practical training, or apply directly to verified internships matching your role.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {onNavigateTraining && (
+                  <button
+                    type="button"
+                    onClick={onNavigateTraining}
+                    style={{
+                      padding: '12px 20px',
+                      background: '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    🎓 Start Training & OJT
+                  </button>
+                )}
+
+                {onNavigateInternships && (
+                  <button
+                    type="button"
+                    onClick={onNavigateInternships}
+                    style={{
+                      padding: '12px 20px',
+                      background: 'rgba(255,255,255,0.12)',
+                      color: '#ffffff',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      borderRadius: '10px',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    💼 Browse Internships
+                  </button>
+                )}
+
+                {onNavigateBuilder && (
+                  <button
+                    type="button"
+                    onClick={onNavigateBuilder}
+                    style={{
+                      padding: '12px 20px',
+                      background: 'rgba(255,255,255,0.12)',
+                      color: '#ffffff',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      borderRadius: '10px',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    📝 Optimize in Resume Builder
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
 
         </div>
 

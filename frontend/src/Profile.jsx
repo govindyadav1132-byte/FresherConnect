@@ -55,14 +55,17 @@ function Profile({ user, onBack }) {
 
     const { error } = await supabase
       .from('profiles')
-      .update({
-        full_name: fullName.trim(),
-        college: college.trim(),
-        course: course.trim(),
-        year: year.trim(),
-        skills: skills.trim(),
-      })
-      .eq('user_id', user.id)
+      .upsert(
+        {
+          user_id: user.id,
+          full_name: fullName.trim(),
+          college: college.trim(),
+          course: course.trim(),
+          year: year.trim(),
+          skills: skills.trim(),
+        },
+        { onConflict: 'user_id' }
+      )
 
     if (error) {
       setMessage(
